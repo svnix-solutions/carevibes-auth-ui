@@ -73,18 +73,24 @@ export async function GET(request: NextRequest) {
   // Exchange the Supabase code + code_verifier for tokens
   const bridgeCallbackUrl = `${getBridgeConfig().baseUrl}/api/bridge/callback`;
 
+  // Supabase OAuth app uses client_secret_basic auth (HTTP Basic)
+  const basicAuth = Buffer.from(
+    `${getBridgeConfig().supabaseClientId}:${getBridgeConfig().supabaseClientSecret}`
+  ).toString("base64");
+
   const tokenResponse = await fetch(
     `${getBridgeConfig().supabaseUrl}/auth/v1/oauth/token`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basicAuth}`,
+      },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
         code_verifier: bridgeState.code_verifier,
         redirect_uri: bridgeCallbackUrl,
-        client_id: getBridgeConfig().supabaseClientId,
-        client_secret: getBridgeConfig().supabaseClientSecret,
       }),
     }
   );
