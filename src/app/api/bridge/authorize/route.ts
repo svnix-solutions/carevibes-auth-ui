@@ -4,7 +4,7 @@ import { generateCodeVerifier, computeCodeChallenge } from "@/lib/bridge/pkce";
 import { signJwt } from "@/lib/bridge/jwt";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
 
   const clientId = searchParams.get("client_id");
   const redirectUri = searchParams.get("redirect_uri");
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   const codeVerifier = generateCodeVerifier(64);
   const codeChallenge = computeCodeChallenge(codeVerifier);
 
-  const bridgeCallbackUrl = `${origin}/api/bridge/callback`;
+  const bridgeCallbackUrl = `${getBridgeConfig().baseUrl}/api/bridge/callback`;
 
   // Encode bridge state into the OAuth state parameter as a signed JWT
   // This avoids cookie dependency which breaks on serverless redirect chains

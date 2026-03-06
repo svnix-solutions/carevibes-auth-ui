@@ -14,6 +14,7 @@ function loadConfig() {
     supabaseClientId: requireEnv("SUPABASE_OAUTH_CLIENT_ID"),
     supabaseClientSecret: requireEnv("SUPABASE_OAUTH_CLIENT_SECRET"),
     supabaseUrl: requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    baseUrl: requireEnv("BRIDGE_BASE_URL"),
     allowedRedirectUris: (process.env.BRIDGE_ALLOWED_REDIRECT_URIS ?? "")
       .split(",")
       .map((s) => s.trim())

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Exchange the Supabase code + code_verifier for tokens
-  const bridgeCallbackUrl = `${request.nextUrl.origin}/api/bridge/callback`;
+  const bridgeCallbackUrl = `${getBridgeConfig().baseUrl}/api/bridge/callback`;
 
   const tokenResponse = await fetch(
     `${getBridgeConfig().supabaseUrl}/auth/v1/oauth/token`,
