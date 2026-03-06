@@ -97,20 +97,11 @@ export async function GET(request: NextRequest) {
       errorBody
     );
 
-    // Include actual upstream error for debugging
-    let upstreamDetail = "";
-    try {
-      const parsed = JSON.parse(errorBody);
-      upstreamDetail = `: ${parsed.error ?? parsed.code ?? ""} ${parsed.error_description ?? parsed.message ?? ""}`.trim();
-    } catch {
-      upstreamDetail = errorBody ? `: ${errorBody.slice(0, 200)}` : "";
-    }
-
     const erpnextRedirect = new URL(bridgeState.erpnext_redirect_uri);
     erpnextRedirect.searchParams.set("error", "server_error");
     erpnextRedirect.searchParams.set(
       "error_description",
-      `Token exchange failed (HTTP ${tokenResponse.status})${upstreamDetail}`
+      `Token exchange failed (HTTP ${tokenResponse.status}): ${errorBody.slice(0, 500)}`
     );
     erpnextRedirect.searchParams.set("state", bridgeState.erpnext_state);
 
