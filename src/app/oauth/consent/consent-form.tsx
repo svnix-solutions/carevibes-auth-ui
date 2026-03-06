@@ -36,9 +36,9 @@ export function ConsentForm({
 
         const d = data as Record<string, any>;
 
-        // If user already consented, auto-redirect
-        if (d.redirect_to) {
-          window.location.href = d.redirect_to;
+        // If user already consented, Supabase auto-approves and returns redirect_url
+        if (d.redirect_url) {
+          window.location.href = d.redirect_url;
           return;
         }
 
@@ -70,9 +70,11 @@ export function ConsentForm({
         return;
       }
       setStatus("done");
+      // SDK auto-redirects via window.location.assign in browser,
+      // but handle it explicitly as a fallback
       const approveResult = data as Record<string, any> | null;
-      if (approveResult?.redirect_to) {
-        window.location.href = approveResult.redirect_to;
+      if (approveResult?.redirect_url) {
+        window.location.href = approveResult.redirect_url;
       }
     } catch (err: any) {
       setError(err.message ?? "An unexpected error occurred.");
@@ -93,8 +95,8 @@ export function ConsentForm({
       }
       setStatus("done");
       const denyResult = data as Record<string, any> | null;
-      if (denyResult?.redirect_to) {
-        window.location.href = denyResult.redirect_to;
+      if (denyResult?.redirect_url) {
+        window.location.href = denyResult.redirect_url;
       }
     } catch (err: any) {
       setError(err.message ?? "An unexpected error occurred.");
