@@ -1,26 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBridgeConfig } from "@/lib/bridge/config";
-import {
-  getBridgeStateCookie,
-  clearBridgeStateCookie,
-} from "@/lib/bridge/cookies";
-import { signJwt } from "@/lib/bridge/jwt";
+import { signJwt, verifyJwt } from "@/lib/bridge/jwt";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
 
   const code = searchParams.get("code");
+  const stateParam = searchParams.get("state");
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
 
-  const bridgeState = getBridgeStateCookie(request);
+  // Decode bridge state from the OAuth state parameter (signed JWT)
+  if (!stateParam) {
+    return NextResponse.json(
+      {
+        error: "invalid_state",
+        error_description: "Missing state parameter.",
+      },
+      { status: 400 }
+    );
+  }
 
-  if (!bridgeState) {
+  let bridgeState: {
+    code_verifier: string;
+    erpnext_redirect_uri: string;
+    erpnext_state: string;
+    erpnext_client_id: string;
+  };
+
+  try {
+    const payload = verifyJwt(stateParam, getBridgeConfig().secret);
+    bridgeState = {
+      code_verifier: payload.code_verifier as string,
+      erpnext_redirect_uri: payload.erpnext_redirect_uri as string,
+      erpnext_state: payload.erpnext_state as string,
+      erpnext_client_id: payload.erpnext_client_id as string,
+    };
+  } catch (err) {
+    console.error("[bridge/callback] State JWT verification failed:", err);
     return NextResponse.json(
       {
         error: "invalid_state",
         error_description:
-          "Bridge state cookie not found or expired. Please restart the authorization flow.",
+          "Bridge state is invalid or expired. Please restart the authorization flow.",
       },
       { status: 400 }
     );
@@ -35,9 +57,7 @@ export async function GET(request: NextRequest) {
     }
     erpnextRedirect.searchParams.set("state", bridgeState.erpnext_state);
 
-    const response = NextResponse.redirect(erpnextRedirect.toString());
-    clearBridgeStateCookie(response);
-    return response;
+    return NextResponse.redirect(erpnextRedirect.toString());
   }
 
   if (!code) {
@@ -85,9 +105,7 @@ export async function GET(request: NextRequest) {
     );
     erpnextRedirect.searchParams.set("state", bridgeState.erpnext_state);
 
-    const response = NextResponse.redirect(erpnextRedirect.toString());
-    clearBridgeStateCookie(response);
-    return response;
+    return NextResponse.redirect(erpnextRedirect.toString());
   }
 
   const tokens = await tokenResponse.json();
@@ -109,7 +127,5 @@ export async function GET(request: NextRequest) {
   erpnextRedirect.searchParams.set("code", bridgeCode);
   erpnextRedirect.searchParams.set("state", bridgeState.erpnext_state);
 
-  const response = NextResponse.redirect(erpnextRedirect.toString());
-  clearBridgeStateCookie(response);
-  return response;
+  return NextResponse.redirect(erpnextRedirect.toString());
 }

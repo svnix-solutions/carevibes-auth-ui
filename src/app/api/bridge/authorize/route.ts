@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBridgeConfig } from "@/lib/bridge/config";
 import { generateCodeVerifier, computeCodeChallenge } from "@/lib/bridge/pkce";
-import { setBridgeStateCookie } from "@/lib/bridge/cookies";
+import { signJwt } from "@/lib/bridge/jwt";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -48,6 +48,19 @@ export async function GET(request: NextRequest) {
 
   const bridgeCallbackUrl = `${origin}/api/bridge/callback`;
 
+  // Encode bridge state into the OAuth state parameter as a signed JWT
+  // This avoids cookie dependency which breaks on serverless redirect chains
+  const bridgeStateJwt = signJwt(
+    {
+      code_verifier: codeVerifier,
+      erpnext_redirect_uri: redirectUri,
+      erpnext_state: state,
+      erpnext_client_id: clientId,
+    },
+    getBridgeConfig().secret,
+    getBridgeConfig().stateCookieMaxAge
+  );
+
   const supabaseAuthorizeUrl = new URL(
     `${getBridgeConfig().supabaseUrl}/auth/v1/oauth/authorize`
   );
@@ -60,16 +73,7 @@ export async function GET(request: NextRequest) {
   supabaseAuthorizeUrl.searchParams.set("scope", scope);
   supabaseAuthorizeUrl.searchParams.set("code_challenge", codeChallenge);
   supabaseAuthorizeUrl.searchParams.set("code_challenge_method", "S256");
-  supabaseAuthorizeUrl.searchParams.set("state", crypto.randomUUID());
+  supabaseAuthorizeUrl.searchParams.set("state", bridgeStateJwt);
 
-  const response = NextResponse.redirect(supabaseAuthorizeUrl.toString());
-
-  setBridgeStateCookie(response, {
-    code_verifier: codeVerifier,
-    erpnext_redirect_uri: redirectUri,
-    erpnext_state: state,
-    erpnext_client_id: clientId,
-  });
-
-  return response;
+  return NextResponse.redirect(supabaseAuthorizeUrl.toString());
 }
