@@ -25,9 +25,8 @@ export function ConsentForm({
     async function fetchDetails() {
       try {
         const supabase = createClient();
-        const { data, error } = await (supabase.auth as any).getAuthorizationDetails(
-          authorizationId
-        );
+        const { data, error } =
+          await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
 
         if (error) {
           setError(error.message ?? "Failed to fetch authorization details.");
@@ -35,9 +34,19 @@ export function ConsentForm({
           return;
         }
 
+        const d = data as Record<string, any>;
+
+        // If user already consented, auto-redirect
+        if (d.redirect_to) {
+          window.location.href = d.redirect_to;
+          return;
+        }
+
         setDetails({
-          client_name: data.client_name ?? data.application?.name ?? "Unknown App",
-          scopes: data.scopes ?? data.requested_scopes ?? [],
+          client_name: d.client_name ?? d.application?.name ?? "Unknown App",
+          scopes: d.scopes
+            ? String(d.scopes).split(" ")
+            : d.requested_scopes ?? [],
         });
         setStatus("ready");
       } catch (err: any) {
@@ -53,15 +62,18 @@ export function ConsentForm({
     setStatus("approving");
     try {
       const supabase = createClient();
-      const { error } = await (supabase.auth as any).approveAuthorization(
-        authorizationId
-      );
+      const { data, error } =
+        await supabase.auth.oauth.approveAuthorization(authorizationId);
       if (error) {
         setError(error.message ?? "Failed to approve authorization.");
         setStatus("error");
         return;
       }
       setStatus("done");
+      const approveResult = data as Record<string, any> | null;
+      if (approveResult?.redirect_to) {
+        window.location.href = approveResult.redirect_to;
+      }
     } catch (err: any) {
       setError(err.message ?? "An unexpected error occurred.");
       setStatus("error");
@@ -72,15 +84,18 @@ export function ConsentForm({
     setStatus("denying");
     try {
       const supabase = createClient();
-      const { error } = await (supabase.auth as any).denyAuthorization(
-        authorizationId
-      );
+      const { data, error } =
+        await supabase.auth.oauth.denyAuthorization(authorizationId);
       if (error) {
         setError(error.message ?? "Failed to deny authorization.");
         setStatus("error");
         return;
       }
       setStatus("done");
+      const denyResult = data as Record<string, any> | null;
+      if (denyResult?.redirect_to) {
+        window.location.href = denyResult.redirect_to;
+      }
     } catch (err: any) {
       setError(err.message ?? "An unexpected error occurred.");
       setStatus("error");
