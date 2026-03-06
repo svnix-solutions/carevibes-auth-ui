@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
   const clientId = searchParams.get("client_id");
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
-  const scope = searchParams.get("scope") || "openid email profile";
   const responseType = searchParams.get("response_type");
 
   if (!clientId || !redirectUri || !state) {
@@ -70,7 +69,8 @@ export async function GET(request: NextRequest) {
   );
   supabaseAuthorizeUrl.searchParams.set("redirect_uri", bridgeCallbackUrl);
   supabaseAuthorizeUrl.searchParams.set("response_type", "code");
-  supabaseAuthorizeUrl.searchParams.set("scope", scope);
+  // Do NOT send scope — Supabase OAuth 2.1 Phase 1 has no scope management;
+  // including scopes (openid, email, profile) causes "validation_failed".
   supabaseAuthorizeUrl.searchParams.set("code_challenge", codeChallenge);
   supabaseAuthorizeUrl.searchParams.set("code_challenge_method", "S256");
   supabaseAuthorizeUrl.searchParams.set("state", bridgeStateJwt);
