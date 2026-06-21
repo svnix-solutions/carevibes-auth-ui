@@ -75,5 +75,21 @@ export async function GET(request: NextRequest) {
   supabaseAuthorizeUrl.searchParams.set("code_challenge_method", "S256");
   supabaseAuthorizeUrl.searchParams.set("state", bridgeStateJwt);
 
-  return NextResponse.redirect(supabaseAuthorizeUrl.toString());
+  const response = NextResponse.redirect(supabaseAuthorizeUrl.toString());
+
+  // Stash the downstream client_id so /oauth/consent can render the right
+  // app name/logo. Path "/" so it travels with the post-login redirect.
+  response.cookies.set(
+    getBridgeConfig().downstreamClientCookieName,
+    clientId,
+    {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: getBridgeConfig().stateCookieMaxAge,
+    }
+  );
+
+  return response;
 }

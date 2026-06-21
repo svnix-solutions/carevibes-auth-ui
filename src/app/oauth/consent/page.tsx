@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { downstreamClients, getBridgeConfig } from "@/lib/bridge/config";
 import { ConsentForm } from "./consent-form";
 
 export default async function ConsentPage({
@@ -28,11 +30,20 @@ export default async function ConsentPage({
     );
   }
 
+  const cookieStore = cookies();
+  const downstreamClientId = cookieStore.get(
+    getBridgeConfig().downstreamClientCookieName
+  )?.value;
+  const downstream = downstreamClientId
+    ? downstreamClients[downstreamClientId]
+    : undefined;
+
   return (
     <CenteredCard>
       <ConsentForm
         authorizationId={authorizationId}
         userEmail={user.email ?? "Unknown user"}
+        downstream={downstream}
       />
     </CenteredCard>
   );

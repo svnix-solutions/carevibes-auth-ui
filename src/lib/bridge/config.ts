@@ -6,6 +6,23 @@ function requireEnv(name: string): string {
   return value;
 }
 
+export interface DownstreamClient {
+  name: string;
+  uri?: string;
+  logoUri?: string;
+}
+
+// Registry of first-party downstream apps that route through this bridge.
+// Add a new entry when onboarding a new app — the key is the client_id sent
+// by the downstream when it hits /api/bridge/authorize.
+export const downstreamClients: Record<string, DownstreamClient> = {
+  "iklera-pos": {
+    name: "Iklera POS",
+    uri: "https://iklera-pos.netlify.app",
+    logoUri: "/ikleralogo.png",
+  },
+};
+
 let _config: ReturnType<typeof loadConfig> | null = null;
 
 function loadConfig() {
@@ -22,6 +39,7 @@ function loadConfig() {
     bridgeCodeTtl: 120,
     stateCookieName: "__bridge_state" as const,
     stateCookieMaxAge: 600,
+    downstreamClientCookieName: "__bridge_downstream_client" as const,
   };
 }
 

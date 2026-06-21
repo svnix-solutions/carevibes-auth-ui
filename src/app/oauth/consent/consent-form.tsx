@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
+import type { DownstreamClient } from "@/lib/bridge/config";
 
 interface AuthorizationDetails {
   client_name: string;
+  client_uri?: string;
+  client_logo_uri?: string;
   scopes: string[];
 }
 
@@ -13,13 +16,21 @@ type Status = "loading" | "ready" | "approving" | "denying" | "done" | "error";
 export function ConsentForm({
   authorizationId,
   userEmail,
+  downstream,
 }: {
   authorizationId: string;
   userEmail: string;
+  downstream?: DownstreamClient;
 }) {
   const [details, setDetails] = useState<AuthorizationDetails | null>(null);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
+
+  // Downstream registry wins over whatever Supabase has registered for the
+  // single bridge OAuth client — that's how each first-party app shows its
+  // own identity on the shared consent screen.
+  const displayName = downstream?.name ?? details?.client_name;
+  const displayLogo = downstream?.logoUri ?? details?.client_logo_uri;
 
   useEffect(() => {
     async function fetchDetails() {
@@ -42,10 +53,17 @@ export function ConsentForm({
           return;
         }
 
+        // Supabase OAuth SDK returns: { client: { name, uri, logo_uri }, scope: "a b c" }
+        // Older/loose shapes are still accepted as fallbacks.
+        const client = d.client ?? {};
+        const scopeStr: string | undefined = d.scope ?? d.scopes;
         setDetails({
-          client_name: d.client_name ?? d.application?.name ?? "Unknown App",
-          scopes: d.scopes
-            ? String(d.scopes).split(" ")
+          client_name:
+            client.name ?? d.client_name ?? d.application?.name ?? "this application",
+          client_uri: client.uri,
+          client_logo_uri: client.logo_uri,
+          scopes: scopeStr
+            ? scopeStr.split(" ").filter(Boolean)
             : d.requested_scopes ?? [],
         });
         setStatus("ready");
@@ -146,13 +164,22 @@ export function ConsentForm({
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* Header */}
       <div className="border-b border-gray-100 px-8 py-6">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
-          <svg className="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-          </svg>
-        </div>
+        {displayLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={displayLogo}
+            alt={displayName ?? "Application logo"}
+            className="mx-auto mb-4 h-14 w-auto"
+          />
+        ) : (
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+            <svg className="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+            </svg>
+          </div>
+        )}
         <h1 className="text-center text-xl font-semibold text-gray-900">
-          Authorize {details?.client_name}
+          Authorize {displayName}
         </h1>
         <p className="mt-1 text-center text-sm text-gray-500">
           This application is requesting access to your account.
@@ -176,7 +203,7 @@ export function ConsentForm({
           <div className="mb-6">
             <p className="mb-3 text-sm font-medium text-gray-700">
               This will allow{" "}
-              <span className="font-semibold">{details.client_name}</span> to:
+              <span className="font-semibold">{displayName}</span> to:
             </p>
             <ul className="space-y-2">
               {details.scopes.map((scope) => (
