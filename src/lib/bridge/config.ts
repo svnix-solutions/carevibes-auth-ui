@@ -18,7 +18,7 @@ export interface DownstreamClient {
 export const downstreamClients: Record<string, DownstreamClient> = {
   "iklera-pos": {
     name: "Iklera POS",
-    uri: "https://iklera-pos.netlify.app",
+    uri: "https://pos.iklera.com",
     logoUri: "/ikleralogo.png",
   },
 };
