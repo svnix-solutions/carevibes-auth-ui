@@ -21,6 +21,10 @@ export const downstreamClients: Record<string, DownstreamClient> = {
     uri: "https://pos.iklera.com",
     logoUri: "/ikleralogo.png",
   },
+  "iklera-doctor": {
+    name: "Iklera Doctor",
+    logoUri: "/ikleralogo.png",
+  },
 };
 
 let _config: ReturnType<typeof loadConfig> | null = null;
