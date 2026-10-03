@@ -37,10 +37,7 @@ export default async function ConsentPage({
   const downstream = downstreamClientId
     ? downstreamClients[downstreamClientId]
     : undefined;
-  // Restart point for "Use a different account": the requesting app's /login.
-  const switchAccountUrl =
-    cookieStore.get(getBridgeConfig().downstreamLoginCookieName)?.value ??
-    (downstream?.uri ? `${downstream.uri}/login` : undefined);
+
 
   return (
     <CenteredCard>
@@ -48,7 +45,6 @@ export default async function ConsentPage({
         authorizationId={authorizationId}
         userEmail={user.email ?? "Unknown user"}
         downstream={downstream}
-        switchAccountUrl={switchAccountUrl}
       />
     </CenteredCard>
   );

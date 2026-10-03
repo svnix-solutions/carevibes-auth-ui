@@ -25,13 +25,10 @@ export function ConsentForm({
   authorizationId,
   userEmail,
   downstream,
-  switchAccountUrl,
 }: {
   authorizationId: string;
   userEmail: string;
   downstream?: DownstreamClient;
-  /** The requesting app's /login — restarts sign-in after switching account. */
-  switchAccountUrl?: string;
 }) {
   const [details, setDetails] = useState<AuthorizationDetails | null>(null);
   const [status, setStatus] = useState<Status>("loading");
@@ -122,18 +119,26 @@ export function ConsentForm({
   }
 
   /**
-   * Sign out of the bridge and restart sign-in from the requesting app. The
-   * current authorization can't be reused — it's bound to this user.
+   * Sign out and sign in as someone else. A pre-approved request is bound to
+   * the current user, so it restarts from the requesting app (identified by
+   * the signed state in Supabase's redirect URL); a not-yet-approved one
+   * returns to this same consent request. Handled server-side so it doesn't
+   * depend on cookies surviving.
    */
-  async function handleSwitchAccount() {
+  function handleSwitchAccount() {
     setStatus("switching");
-    try {
-      await createClient().auth.signOut();
-    } catch {
-      // Even if revoking fails, the restart below lands on the login form
-      // only if the session is gone — surface that rather than looping.
+    let state: string | null = null;
+    if (pendingRedirect) {
+      try {
+        state = new URL(pendingRedirect).searchParams.get("state");
+      } catch {
+        // malformed — fall back to authorization_id
+      }
     }
-    window.location.href = switchAccountUrl ?? "/login";
+    const params = new URLSearchParams(
+      state ? { state } : { authorization_id: authorizationId }
+    );
+    window.location.href = `/api/bridge/switch-account?${params.toString()}`;
   }
 
   async function handleDeny() {
