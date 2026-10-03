@@ -45,6 +45,10 @@ function loadConfig() {
     stateCookieName: "__bridge_state" as const,
     stateCookieMaxAge: 600,
     downstreamClientCookieName: "__bridge_downstream_client" as const,
+    // Where to restart sign-in when the user picks "Use a different account":
+    // the downstream app's /login, derived from its (already allow-listed)
+    // redirect_uri.
+    downstreamLoginCookieName: "__bridge_downstream_login" as const,
   };
 }
 

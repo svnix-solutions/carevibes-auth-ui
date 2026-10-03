@@ -11,20 +11,32 @@ interface AuthorizationDetails {
   scopes: string[];
 }
 
-type Status = "loading" | "ready" | "approving" | "denying" | "done" | "error";
+type Status =
+  | "loading"
+  | "ready"
+  | "confirm" // already approved before — ask "continue as X?" instead of auto-redirecting
+  | "approving"
+  | "denying"
+  | "switching"
+  | "done"
+  | "error";
 
 export function ConsentForm({
   authorizationId,
   userEmail,
   downstream,
+  switchAccountUrl,
 }: {
   authorizationId: string;
   userEmail: string;
   downstream?: DownstreamClient;
+  /** The requesting app's /login — restarts sign-in after switching account. */
+  switchAccountUrl?: string;
 }) {
   const [details, setDetails] = useState<AuthorizationDetails | null>(null);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
 
   // Downstream registry wins over whatever Supabase has registered for the
   // single bridge OAuth client — that's how each first-party app shows its
@@ -47,9 +59,12 @@ export function ConsentForm({
 
         const d = data as Record<string, any>;
 
-        // If user already consented, Supabase auto-approves and returns redirect_url
+        // Already consented: Supabase auto-approves and returns redirect_url.
+        // Don't follow it silently — on a shared device the remembered session
+        // may be someone else's. Ask "continue as X?" first.
         if (d.redirect_url) {
-          window.location.href = d.redirect_url;
+          setPendingRedirect(d.redirect_url);
+          setStatus("confirm");
           return;
         }
 
@@ -98,6 +113,27 @@ export function ConsentForm({
       setError(err.message ?? "An unexpected error occurred.");
       setStatus("error");
     }
+  }
+
+  function handleContinue() {
+    if (!pendingRedirect) return;
+    setStatus("done");
+    window.location.href = pendingRedirect;
+  }
+
+  /**
+   * Sign out of the bridge and restart sign-in from the requesting app. The
+   * current authorization can't be reused — it's bound to this user.
+   */
+  async function handleSwitchAccount() {
+    setStatus("switching");
+    try {
+      await createClient().auth.signOut();
+    } catch {
+      // Even if revoking fails, the restart below lands on the login form
+      // only if the session is gone — surface that rather than looping.
+    }
+    window.location.href = switchAccountUrl ?? "/login";
   }
 
   async function handleDeny() {
@@ -160,6 +196,57 @@ export function ConsentForm({
     );
   }
 
+  if (status === "confirm" || (status === "switching" && pendingRedirect)) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-8 py-6">
+          {displayLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={displayLogo} alt={displayName ?? "Application logo"} className="mx-auto mb-4 h-14 w-auto" />
+          )}
+          <h1 className="text-center text-xl font-semibold text-gray-900">
+            Continue to {displayName ?? "the app"}?
+          </h1>
+        </div>
+        <div className="px-8 py-6">
+          <div className="flex items-center gap-3 rounded-md bg-gray-50 px-4 py-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold uppercase text-blue-700">
+              {userEmail.slice(0, 1)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Signed in as</p>
+              <p className="truncate text-sm font-medium text-gray-900">{userEmail}</p>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-gray-100 px-8 py-5">
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleContinue}
+              disabled={status === "switching"}
+              className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+            >
+              Continue as {userEmail}
+            </button>
+            <button
+              onClick={handleSwitchAccount}
+              disabled={status === "switching"}
+              className="flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:opacity-50"
+            >
+              {status === "switching" ? (
+                <>
+                  <Spinner size="sm" /> <span className="ml-2">Signing out...</span>
+                </>
+              ) : (
+                "Use a different account"
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* Header */}
@@ -196,6 +283,14 @@ export function ConsentForm({
           <p className="mt-0.5 text-sm font-medium text-gray-900">
             {userEmail}
           </p>
+          <button
+            type="button"
+            onClick={handleSwitchAccount}
+            disabled={status !== "ready"}
+            className="mt-1 text-xs font-medium text-blue-600 hover:underline disabled:opacity-50"
+          >
+            Not you? Use a different account
+          </button>
         </div>
 
         {/* Scopes */}
