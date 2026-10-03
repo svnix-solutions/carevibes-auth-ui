@@ -23,6 +23,7 @@ export const downstreamClients: Record<string, DownstreamClient> = {
   },
   "iklera-doctor": {
     name: "Iklera Doctor",
+    uri: "https://dr.iklera.com",
     logoUri: "/ikleralogo.png",
   },
 };
