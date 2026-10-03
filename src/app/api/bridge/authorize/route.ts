@@ -91,5 +91,20 @@ export async function GET(request: NextRequest) {
     }
   );
 
+  // The downstream app's /login restarts the whole flow — used by "Use a
+  // different account" on the consent screen. redirectUri is already
+  // validated against the allow-list above.
+  response.cookies.set(
+    getBridgeConfig().downstreamLoginCookieName,
+    `${new URL(redirectUri).origin}/login`,
+    {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: getBridgeConfig().stateCookieMaxAge,
+    }
+  );
+
   return response;
 }

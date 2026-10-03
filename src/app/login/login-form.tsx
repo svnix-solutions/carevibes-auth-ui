@@ -48,6 +48,9 @@ export function LoginForm({ next }: { next: string }) {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          // Always show Google's account chooser, so "Use a different account"
+          // doesn't silently sign the same Google account back in.
+          queryParams: { prompt: "select_account" },
         },
       });
 
