@@ -6,6 +6,23 @@ import { signJwt } from "@/lib/bridge/jwt";
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
 
+  // Run the flow on the bridge's own host. Supabase always sends the browser
+  // back to that host for the login/consent pages, so the downstream-client
+  // cookie set below must live there too: started on another address (e.g.
+  // the old *.netlify.app one), the login page wouldn't see this app's
+  // cookie — and would read a leftover one from another app instead, e.g.
+  // offering patient sign-up on the doctor app's login.
+  // Redirects at most once (`canonical=1`), so a proxy reporting the host
+  // differently can't put every sign-in into a loop.
+  const base = new URL(getBridgeConfig().baseUrl);
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (host && host !== base.host && !searchParams.has("canonical")) {
+    const target = new URL(request.nextUrl.pathname, base.origin);
+    searchParams.forEach((value, key) => target.searchParams.set(key, value));
+    target.searchParams.set("canonical", "1");
+    return NextResponse.redirect(target.toString(), 307);
+  }
+
   const clientId = searchParams.get("client_id");
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
