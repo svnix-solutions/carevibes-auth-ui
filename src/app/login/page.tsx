@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { downstreamClients, getBridgeConfig } from "@/lib/bridge/config";
+import { safeNext } from "@/lib/safe-next";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
@@ -16,7 +17,7 @@ export default async function LoginPage({
 
   // Already logged in — go straight to the next URL
   if (user && searchParams.next) {
-    redirect(searchParams.next);
+    redirect(safeNext(searchParams.next));
   }
 
   // The app that started this sign-in (set by /api/bridge/authorize).
@@ -44,7 +45,7 @@ export default async function LoginPage({
           {/* Form */}
           <div className="px-8 py-6">
             <LoginForm
-              next={searchParams.next ?? "/oauth/consent"}
+              next={safeNext(searchParams.next)}
               allowSignUp={allowSignUp}
             />
           </div>
