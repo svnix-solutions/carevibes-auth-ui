@@ -37,6 +37,11 @@ export default async function ConsentPage({
   const downstream = downstreamClientId
     ? downstreamClients[downstreamClientId]
     : undefined;
+  // The requesting app's /login (set by /api/bridge/authorize from an
+  // allow-listed redirect_uri) — where "Try again" restarts sign-in.
+  const restartUrl = cookieStore.get(
+    getBridgeConfig().downstreamLoginCookieName
+  )?.value;
 
 
   return (
@@ -45,6 +50,7 @@ export default async function ConsentPage({
         authorizationId={authorizationId}
         userEmail={user.email ?? "Unknown user"}
         downstream={downstream}
+        restartUrl={restartUrl}
       />
     </CenteredCard>
   );
