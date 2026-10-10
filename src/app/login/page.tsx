@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { downstreamClients, getBridgeConfig } from "@/lib/bridge/config";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
@@ -17,6 +19,14 @@ export default async function LoginPage({
     redirect(searchParams.next);
   }
 
+  // The app that started this sign-in (set by /api/bridge/authorize).
+  const downstreamClientId = cookies().get(
+    getBridgeConfig().downstreamClientCookieName
+  )?.value;
+  const allowSignUp = Boolean(
+    downstreamClientId && downstreamClients[downstreamClientId]?.allowSignUp
+  );
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -33,7 +43,10 @@ export default async function LoginPage({
 
           {/* Form */}
           <div className="px-8 py-6">
-            <LoginForm next={searchParams.next ?? "/oauth/consent"} />
+            <LoginForm
+              next={searchParams.next ?? "/oauth/consent"}
+              allowSignUp={allowSignUp}
+            />
           </div>
         </div>
       </div>

@@ -4,18 +4,68 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({
+  next,
+  allowSignUp = false,
+}: {
+  next: string;
+  /** Show "Create account" — only for apps whose users sign themselves up. */
+  allowSignUp?: boolean;
+}) {
   const router = useRouter();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [confirmSent, setConfirmSent] = useState(false);
+  const signingUp = mode === "signup";
+
+  async function handleSignUp() {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        // The confirmation link signs them in and resumes this authorization.
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    // No session means the email must be confirmed first (Supabase "Confirm
+    // email" on — required by the patient app). An already-registered email
+    // gets the same answer, so the form doesn't reveal who has an account.
+    if (!data.session) {
+      setConfirmSent(true);
+      setLoading(false);
+      return;
+    }
+
+    router.push(next);
+    router.refresh();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    if (signingUp) {
+      try {
+        await handleSignUp();
+      } catch {
+        setError("An unexpected error occurred. Please try again.");
+        setLoading(false);
+      }
+      return;
+    }
 
     try {
       const supabase = createClient();
@@ -64,6 +114,31 @@ export function LoginForm({ next }: { next: string }) {
     }
   }
 
+  if (confirmSent) {
+    return (
+      <div className="flex flex-col gap-4 text-center">
+        <h2 className="text-base font-semibold text-gray-900">
+          Check your email
+        </h2>
+        <p className="text-sm text-gray-600">
+          We sent a confirmation link to <strong>{email}</strong>. Open it on
+          this device to finish creating your account.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setConfirmSent(false);
+            setMode("signin");
+            setPassword("");
+          }}
+          className="text-sm font-medium text-blue-600 hover:underline"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -96,9 +171,11 @@ export function LoginForm({ next }: { next: string }) {
             id="password"
             type="password"
             required
+            minLength={signingUp ? 8 : undefined}
+            autoComplete={signingUp ? "new-password" : "current-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Your password"
+            placeholder={signingUp ? "At least 8 characters" : "Your password"}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
         </div>
@@ -114,9 +191,31 @@ export function LoginForm({ next }: { next: string }) {
           disabled={loading}
           className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
         >
-          {loading ? "Signing in..." : "Sign In"}
+          {signingUp
+            ? loading
+              ? "Creating account..."
+              : "Create account"
+            : loading
+              ? "Signing in..."
+              : "Sign In"}
         </button>
       </form>
+
+      {allowSignUp && (
+        <p className="text-center text-sm text-gray-500">
+          {signingUp ? "Already have an account? " : "New here? "}
+          <button
+            type="button"
+            onClick={() => {
+              setMode(signingUp ? "signin" : "signup");
+              setError(null);
+            }}
+            className="font-medium text-blue-600 hover:underline"
+          >
+            {signingUp ? "Sign in" : "Create an account"}
+          </button>
+        </p>
+      )}
 
       {/* Divider */}
       <div className="relative">
@@ -152,7 +251,11 @@ export function LoginForm({ next }: { next: string }) {
             fill="#EA4335"
           />
         </svg>
-        {googleLoading ? "Redirecting..." : "Sign in with Google"}
+        {googleLoading
+          ? "Redirecting..."
+          : signingUp
+            ? "Continue with Google"
+            : "Sign in with Google"}
       </button>
     </div>
   );
