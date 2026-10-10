@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getBridgeConfig } from "@/lib/bridge/config";
 import { verifyJwt } from "@/lib/bridge/jwt";
+import { publicOrigin } from "@/lib/public-origin";
 
 /**
  * "Use a different account" from the consent screen.
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
   if (!target && authorizationId) {
     const consent = `/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`;
-    target = new URL(`/login?next=${encodeURIComponent(consent)}`, request.url).toString();
+    target = new URL(`/login?next=${encodeURIComponent(consent)}`, publicOrigin(request)).toString();
   }
 
   if (!target) {
