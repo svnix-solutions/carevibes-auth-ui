@@ -25,10 +25,13 @@ export function ConsentForm({
   authorizationId,
   userEmail,
   downstream,
+  restartUrl,
 }: {
   authorizationId: string;
   userEmail: string;
   downstream?: DownstreamClient;
+  /** The requesting app's /login, to start a fresh sign-in after an error. */
+  restartUrl?: string;
 }) {
   const [details, setDetails] = useState<AuthorizationDetails | null>(null);
   const [status, setStatus] = useState<Status>("loading");
@@ -49,6 +52,7 @@ export function ConsentForm({
           await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
 
         if (error) {
+          console.error("[consent] getAuthorizationDetails failed:", error);
           setError(error.message ?? "Failed to fetch authorization details.");
           setStatus("error");
           return;
@@ -95,6 +99,7 @@ export function ConsentForm({
       const { data, error } =
         await supabase.auth.oauth.approveAuthorization(authorizationId);
       if (error) {
+        console.error("[consent] approveAuthorization failed:", error);
         setError(error.message ?? "Failed to approve authorization.");
         setStatus("error");
         return;
@@ -186,6 +191,20 @@ export function ConsentForm({
           Authorization Error
         </h2>
         <p className="text-center text-sm text-gray-600">{error}</p>
+        {/* A sign-in request can't be reused once it fails, but the user is
+            signed in by now, so a fresh request from the app usually goes
+            straight through. */}
+        {restartUrl && (
+          <a
+            href={restartUrl}
+            className="mt-6 flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Try again
+          </a>
+        )}
+        <p className="mt-4 text-center text-xs text-gray-400">
+          If this keeps happening, please send this message to the clinic.
+        </p>
       </div>
     );
   }
