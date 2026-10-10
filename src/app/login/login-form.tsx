@@ -13,7 +13,8 @@ export function LoginForm({
   allowSignUp?: boolean;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [resetSent, setResetSent] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,32 @@ export function LoginForm({
 
     router.push(next);
     router.refresh();
+  }
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      // The link signs them in (PKCE, so it must open in this browser) and
+      // lands on /reset-password, which then resumes this sign-in.
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+          `/reset-password?next=${encodeURIComponent(next)}`
+        )}`,
+      });
+      // Too many requests is worth saying; anything about the account isn't.
+      if (error && /rate|too many|seconds/i.test(error.message)) {
+        setError("Too many requests. Please wait a minute and try again.");
+        setLoading(false);
+        return;
+      }
+      setResetSent(true);
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
+    }
+    setLoading(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -114,6 +141,74 @@ export function LoginForm({
     }
   }
 
+  if (resetSent) {
+    return (
+      <div className="flex flex-col gap-4 text-center">
+        <h2 className="text-base font-semibold text-gray-900">Check your email</h2>
+        <p className="text-sm text-gray-600">
+          If <strong>{email}</strong> has an account, we&apos;ve sent a link to
+          set a new password. Open it on this device. It works for one hour.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setResetSent(false);
+            setMode("signin");
+          }}
+          className="text-sm font-medium text-blue-600 hover:underline"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
+  if (mode === "forgot") {
+    return (
+      <form onSubmit={handleForgot} className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Forgot your password?</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Enter your email and we&apos;ll send you a link to set a new one.
+          </p>
+        </div>
+        <div>
+          <label htmlFor="reset-email" className="mb-1.5 block text-sm font-medium text-gray-700">
+            Email
+          </label>
+          <input
+            id="reset-email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
+        </div>
+        {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? "Sending..." : "Send reset link"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode("signin");
+            setError(null);
+          }}
+          className="text-sm font-medium text-blue-600 hover:underline"
+        >
+          Back to sign in
+        </button>
+      </form>
+    );
+  }
+
   if (confirmSent) {
     return (
       <div className="flex flex-col gap-4 text-center">
@@ -161,12 +256,23 @@ export function LoginForm({
         </div>
 
         <div>
-          <label
-            htmlFor="password"
-            className="mb-1.5 block text-sm font-medium text-gray-700"
-          >
-            Password
-          </label>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            {!signingUp && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgot");
+                  setError(null);
+                }}
+                className="text-xs font-medium text-blue-600 hover:underline"
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
           <input
             id="password"
             type="password"
