@@ -10,6 +10,11 @@ export interface DownstreamClient {
   name: string;
   uri?: string;
   logoUri?: string;
+  /**
+   * Offer "Create account" on the login page. Only for apps whose users sign
+   * themselves up (patients); staff apps need an ERPNext user made by an admin.
+   */
+  allowSignUp?: boolean;
 }
 
 // Registry of first-party downstream apps that route through this bridge.
@@ -25,6 +30,11 @@ export const downstreamClients: Record<string, DownstreamClient> = {
     name: "Iklera Doctor",
     uri: "https://dr.iklera.com",
     logoUri: "/ikleralogo.png",
+  },
+  "iklera-patient": {
+    name: "Iklera",
+    logoUri: "/ikleralogo.png",
+    allowSignUp: true,
   },
 };
 
