@@ -31,6 +31,11 @@ export const downstreamClients: Record<string, DownstreamClient> = {
     uri: "https://dr.iklera.com",
     logoUri: "/ikleralogo.png",
   },
+  "iklera-phlebo": {
+    name: "Iklera Phlebo",
+    uri: "https://phlebo.iklera.com",
+    logoUri: "/ikleralogo.png",
+  },
   "iklera-patient": {
     name: "Iklera",
     logoUri: "/ikleralogo.png",
